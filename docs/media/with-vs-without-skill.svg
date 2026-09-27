@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="300" viewBox="0 0 920 300" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title>The same Spotify dashboard request with and without the skill</title>
+  <rect x="1" y="1" width="918" height="298" rx="14" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+
+  <!-- request -->
+  <rect x="20" y="40" width="196" height="172" rx="10" fill="#0d1117" stroke="#1db954" stroke-width="2"/>
+  <text x="118" y="72" fill="#8b949e" font-size="12" font-weight="700" text-anchor="middle" letter-spacing="1">YOU ASK</text>
+  <text x="118" y="112" fill="#e6edf3" font-size="14" font-weight="700" text-anchor="middle">"Build a dashboard</text>
+  <text x="118" y="134" fill="#e6edf3" font-size="14" font-weight="700" text-anchor="middle">that shows what's</text>
+  <text x="118" y="156" fill="#e6edf3" font-size="14" font-weight="700" text-anchor="middle">playing on Spotify"</text>
+
+  <!-- without lane -->
+  <text x="236" y="54" fill="#f85149" font-size="13" font-weight="700">WITHOUT THE SKILL</text>
+  <g font-size="14" font-weight="700" text-anchor="middle">
+    <rect x="236" y="64" width="128" height="40" rx="8" fill="#3d1418" stroke="#f85149"/>
+    <text x="300" y="89" fill="#ffdcd7">Polls every 1s</text>
+    <rect x="372" y="64" width="144" height="40" rx="8" fill="#3d1418" stroke="#f85149"/>
+    <text x="444" y="89" fill="#ffdcd7">429 Rate limited</text>
+    <rect x="524" y="64" width="112" height="40" rx="8" fill="#3d1418" stroke="#f85149"/>
+    <text x="580" y="89" fill="#ffdcd7">Server hangs</text>
+    <rect x="644" y="64" width="112" height="40" rx="8" fill="#3d1418" stroke="#f85149"/>
+    <text x="700" y="89" fill="#ffdcd7">Adds backoff</text>
+    <rect x="764" y="64" width="120" height="40" rx="8" fill="#3b2a0b" stroke="#d29922"/>
+    <text x="824" y="89" fill="#f2cc60">Works · try 4</text>
+  </g>
+
+  <!-- with lane -->
+  <text x="236" y="146" fill="#3fb950" font-size="13" font-weight="700">WITH THE SKILL</text>
+  <g font-size="14" font-weight="700" text-anchor="middle">
+    <rect x="236" y="156" width="144" height="40" rx="8" fill="#0f2e1a" stroke="#3fb950"/>
+    <text x="308" y="181" fill="#aff5b4">Checks the rules</text>
+    <rect x="388" y="156" width="120" height="40" rx="8" fill="#0f2e1a" stroke="#3fb950"/>
+    <text x="448" y="181" fill="#aff5b4">Smart polling</text>
+    <rect x="516" y="156" width="120" height="40" rx="8" fill="#0f2e1a" stroke="#3fb950"/>
+    <text x="576" y="181" fill="#aff5b4">Works · try 1</text>
+  </g>
+  <rect x="644" y="150" width="240" height="52" rx="8" fill="none" stroke="#3fb950" stroke-width="2" stroke-dasharray="6 5"/>
+  <text x="764" y="172" fill="#3fb950" font-size="14" font-weight="700" text-anchor="middle">Time you get back</text>
+  <text x="764" y="192" fill="#8b949e" font-size="12" text-anchor="middle">no 429s, no retries</text>
+
+  <!-- time arrow -->
+  <line x1="236" y1="244" x2="872" y2="244" stroke="#8b949e" stroke-width="2"/>
+  <polygon points="884,244 870,237 870,251" fill="#8b949e"/>
+  <text x="236" y="270" fill="#8b949e" font-size="12" font-weight="700">TIME</text>
+</svg>

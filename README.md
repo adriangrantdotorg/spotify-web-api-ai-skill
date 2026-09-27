@@ -1,199 +1,79 @@
-# 🤖🔊 Spotify Web API Agentic Skill
+# 🎧🤖 Spotify Web API Agentic Skill
 
 ![Spotify Web API Agentic Skill Banner](banner.png)
 
-> An Agent Skill for the Spotify Web API that teaches AI agents best practices for building robust, rate-limit-aware applications.
+> An Agent Skill that teaches your AI assistant to build Spotify apps that stay fast, stay under the rate limit, and don't break in odd ways.
 
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Claude Code](https://img.shields.io/badge/Claude%20Code-Anthropic-purple)](https://claude.ai)
-[![Gemini CLI](https://img.shields.io/badge/Gemini%20CLI-Google-blue)](https://github.com/google-gemini/gemini-cli)
-[![Codex CLI](https://img.shields.io/badge/Codex%20CLI-OpenAI-green)](https://github.com/openai/codex)
-[![Cursor](https://img.shields.io/badge/Cursor-AI%20IDE-orange)](https://cursor.sh)
-[![OpenCode](https://img.shields.io/badge/OpenCode-CLI-gray)](https://github.com/opencode-ai/opencode)
-[![Antigravity](https://img.shields.io/badge/Antigravity-DeepMind-red)](https://github.com/sickn33/antigravity-awesome-skills)
-[![Agent Skills Standard](https://img.shields.io/badge/Agent%20Skills-Standard-blue.svg)](https://github.com/anthropics/skills)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE.txt) [![Agent Skills Standard](https://img.shields.io/badge/Agent%20Skills-Standard-1DB954.svg)](https://github.com/anthropics/skills) [![Version](https://img.shields.io/github/v/release/adriangrantdotorg/spotify-web-api-skill?color=orange&label=Version)](https://github.com/adriangrantdotorg/spotify-web-api-skill/releases) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/adriangrantdotorg/spotify-web-api-skill/pulls)
 
-Transform your AI coding assistant into a Spotify integration expert with battle-tested patterns for handling rate limits, smart polling, and efficient data fetching.
+---
+
+## ⬇️ Why Install?
+
+- 🚦 **Fewer 429 errors** — polls and pages the way Spotify's limits expect
+- 💸 **$0 added cost** — it runs on the AI you already use
+- 📅 **Current with 2026 endpoints** — playlist `/items`, not the deprecated `/tracks`
+- 🧠 **Lessons from real apps** — fixes for bugs that docs never mention
+
+| | 😩 Without this Skill | 😌 With this Skill |
+| --- | :---: | :---: |
+| 🔁 Tries until it stops hitting 429s | 🧪 3–5 | **1** |
+| 📄 Calls to read a 1,000-track playlist | 50 (default `limit=20`) | **10** (`limit=100`) |
+| 🙈 Polls per hour in a hidden tab | 360 | **60** |
+| ⚡ Page switch, "now playing" | 🧪 ~350 ms | **🧪 ~2 ms** |
+
+<sub>🧪 estimate</sub>
 
 ---
 
 ## ✨ Features
 
-This skill equips AI agents with specialized knowledge to:
+Before your AI writes Spotify code, it checks rules drawn from real dashboards and scripts, so the first version already handles limits, lag and edge cases.
 
-- ⚡ **Handle Rate Limits Gracefully** - Implement proper 429 error handling with `Retry-After` header extraction
-- 🔄 **Smart Polling Strategies** - Dynamic interval adjustment using the Page Visibility API
-- 📊 **Optimize Data Fetching** - Maximize page sizes and minimize API calls
-- 🔐 **Manage OAuth Authentication** - Best practices for SpotifyOAuth configuration
-- 🎯 **Choose the Right API** - Clear guidance on Web API vs Web Playback SDK
-- 🛡️ **Build Resilient Apps** - Server-side fail-fast patterns to prevent thread blocking
+![The same request with and without the skill: without it, the app polls too often, gets rate limited, hangs, and works on try 4; with it, the AI checks the rules, uses smart polling, and works on try 1](docs/media/with-vs-without-skill.svg)
 
----
-
-## 📋 Prerequisites
-
-To use this skill with Spotify integrations, you'll need:
-
-- **Spotify Developer Account** - [Register here](https://developer.spotify.com/)
-- **Spotify App Credentials**:
-  - `SPOTIPY_CLIENT_ID` - Your app's client ID
-  - `SPOTIPY_CLIENT_SECRET` - Your app's client secret
-  - `SPOTIPY_REDIRECT_URI` - OAuth callback URL
-
-Set these as environment variables or configure them in your development environment.
+- 🚦 **Rate limits handled for you** — fail fast, read `Retry-After`, show the user a countdown
+- 🔄 **Smart polling** — every 10 s while visible, every 60 s when the tab is hidden
+- ⚡ **Instant page switches** — a 5-second server cache plus a saved last track
+- 🗂️ **"Which playlists have this song" that survives restarts** — a saved cache, never faked as empty
+- 🎛️ **Controls that don't flip back** — holds a repeat or shuffle change until Spotify catches up
+- ⏮️ **No false errors on Previous or Next** — "Restriction violated" restarts the track instead
+- 🔐 **Safe token sharing** — a second tool borrows the login and never refreshes it
 
 ---
 
-## 🚀 Installation & Integration
+## 🚀 Installation
 
-This skill follows the [Agent Skills open standard](https://github.com/anthropics/skills) and is compatible with multiple AI coding platforms.
-
-### Quick Reference Table
-
-| **Platform**           | **Type** | **Installation Path**                        | **Invocation**                                           |
-| ---------------------- | -------- | -------------------------------------------- | -------------------------------------------------------- |
-| **Claude Code**        | CLI      | `~/.claude/skills/spotify-web-api/`          | `Use the Spotify Web API skill...` or `/spotify-web-api` |
-| **Claude.ai**          | Web      | Upload via Settings → Skills                 | Automatically invoked when relevant                      |
-| **Google Antigravity** | IDE      | `.agent/skills/spotify-web-api/`             | Automatically invoked when relevant                      |
-| **OpenCode**           | IDE      | `~/.config/opencode/skills/spotify-web-api/` | `skill({ name: "spotify-web-api" })`                     |
-| **Cursor IDE**         | IDE      | `.cursor/skills/spotify-web-api/`            | Mentioned in chat with `@spotify-web-api`                |
-| **OpenAI Codex**       | CLI      | `~/.codex/skills/spotify-web-api/`           | Automatically invoked when relevant                      |
-| **Gemini CLI**         | CLI      | `~/.gemini/skills/spotify-web-api/`          | Automatically invoked when relevant                      |
-
-### Detailed Installation Instructions
-
-#### **Option 1: Clone from GitHub** (Recommended)
+Needs an AI assistant that supports [Agent Skills](https://github.com/anthropics/skills). The apps it builds need a [Spotify developer app](https://developer.spotify.com/) (client ID, client secret, redirect URI).
 
 ```bash
-# For Claude Code (personal skills)
-git clone https://github.com/adriangrantdotorg/spotify-web-api-skill.git ~/.claude/skills/spotify-web-api
-
-# For Google Antigravity (project skills)
-git clone https://github.com/adriangrantdotorg/spotify-web-api-skill.git .agent/skills/spotify-web-api
-
-# For OpenCode (global skills)
-git clone https://github.com/adriangrantdotorg/spotify-web-api-skill.git ~/.config/opencode/skills/spotify-web-api
-
-# For Cursor (project skills)
-git clone https://github.com/adriangrantdotorg/spotify-web-api-skill.git .cursor/skills/spotify-web-api
-
-# For OpenAI Codex (global skills)
-git clone https://github.com/adriangrantdotorg/spotify-web-api-skill.git ~/.codex/skills/spotify-web-api
-
-# For Gemini CLI (global skills)
-git clone https://github.com/adriangrantdotorg/spotify-web-api-skill.git ~/.gemini/skills/spotify-web-api
+git clone --depth 1 https://github.com/adriangrantdotorg/spotify-web-api-skill.git
+cp -R spotify-web-api-skill/skill/spotify-web-api ~/.claude/skills/
 ```
 
-#### **Option 2: Manual Installation**
+Other platforms: copy the same `skill/spotify-web-api` folder into the folder below.
 
-1. Download the [latest release](https://github.com/adriangrantdotorg/spotify-web-api-skill/releases)
-2. Extract the `spotify-web-api` folder
-3. Copy to the appropriate skills directory for your platform (see table above)
-4. Ensure `skill/spotify-web-api/SKILL.md` exists
-5. Restart your AI assistant or reload the workspace
-
-#### **Option 3: Claude.ai Upload**
-
-1. Navigate to **Settings** → **Capabilities** → **Skills**
-2. Click **Upload skill**
-3. Select the ZIP file containing the skill folder
-4. Toggle the skill **ON**
+| **Platform** | **Skills folder** |
+| --- | --- |
+| **Claude Code** | `~/.claude/skills/` |
+| **Claude.ai** | Settings ▸ Capabilities ▸ Skills ▸ upload the folder as a ZIP |
+| **Codex CLI** | `~/.codex/skills/` |
+| **Gemini CLI** | `~/.gemini/skills/` |
+| **OpenCode** | `~/.config/opencode/skills/` |
+| **Cursor** | `.cursor/skills/` in your project |
+| **Google Antigravity** | `.agent/skills/` in your project |
 
 ---
 
-## 💡 Usage Examples
+## 💡 Usage
 
-Once installed, your AI agent will automatically apply these best practices when working with Spotify. Here are some natural language prompts to try:
+Describe what you want; the skill kicks in on its own whenever Spotify comes up.
 
-### Creating a New Integration
-
-```
-"Create a Python Flask app that displays my currently playing track with proper rate limit handling"
-```
-
-The agent will:
-
-- Configure `spotipy` with fail-fast retry settings
-- Implement 429 error handling with `Retry-After` extraction
-- Add user-friendly countdown UI for rate limit waits
-
-### Building a Dashboard
-
-```
-"Build a dashboard that polls my playback state every 10 seconds"
-```
-
-The agent will:
-
-- Implement the Page Visibility API pattern
-- Adjust polling from 10s (active) to 60s (hidden tab)
-- Use `limit=50` for any list fetches
-
-### Optimizing Existing Code
-
-```
-"Review this Spotify integration code and optimize it for rate limits"
-```
-
-The agent will:
-
-- Audit retry configurations
-- Check for proper error handling
-- Suggest smart polling improvements
-- Verify maximum page sizes are used
-
----
-
-## 🤝 Contributing
-
-We'd love contributions from the community, thanks! Whether you're fixing bugs, adding examples, or improving documentation, your help makes this skill better for everyone 🙌🏾
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines on:
-
-- Setting up your development environment
-- Coding standards and best practices
-- Submitting pull requests
-- Adding new examples
-- Reporting issues
-
-**Quick Start for Contributors:**
-
-```bash
-# Fork and clone the repository
-git clone https://github.com/adriangrantdotorg/spotify-web-api-skill.git
-cd spotify-web-api-skill
-
-# Create a feature branch
-git checkout -b feature/your-feature-name
-
-# Make your changes and test them
-# (Install in your local skills directory and test with your AI agent)
-
-# Commit and push
-git commit -m "Add: description of your changes"
-git push origin feature/your-feature-name
-
-# Open a Pull Request on GitHub
-```
-
----
-
-## 📚 Additional Resources
-
-- **[Spotify Web API Documentation](https://developer.spotify.com/documentation/web-api)** - Official API reference
-- **[Spotipy Library](https://spotipy.readthedocs.io/)** - Python client documentation
-- **[Agent Skills Specification](https://github.com/anthropics/skills)** - Open standard documentation
-- **[Rate Limiting Guide](https://developer.spotify.com/documentation/web-api/concepts/rate-limits)** - Spotify's official rate limit documentation
-
----
-
-## 🐛 Issues & Support
-
-Encountered a problem or have a suggestion?
-
-- **Bug Reports**: [Open an issue](https://github.com/adriangrantdotorg/spotify-web-api-skill/issues/new?template=bug_report.md)
-- **Feature Requests**: [Request a feature](https://github.com/adriangrantdotorg/spotify-web-api-skill/issues/new?template=feature_request.md)
+| You say | The skill makes |
+| --- | --- |
+| "Make a Flask app that shows my currently playing track." | A **fail-fast Spotipy server** that returns `Retry-After` and a UI countdown on 429 |
+| "Build a dashboard that polls my playback state." | A **smart-polling dashboard** with instant page switches and a saved last track |
+| "Write a script that moves the selected tracks to another playlist." | A **playlist mover** on `/items` that puts tracks back if the add fails |
 
 ---
 
