@@ -36,12 +36,12 @@ Before contributing, make sure you have:
 2. **Clone your fork locally**:
    ```bash
    git clone https://github.com/adriangrantdotorg/spotify-web-api-ai-skill.git
-   cd spotify-web-api-skill
+   cd spotify-web-api-ai-skill
    ```
 
 3. **Add the upstream remote**:
    ```bash
-   git remote add upstream https://github.com/ORIGINAL-OWNER/spotify-web-api-skill.git
+   git remote add upstream https://github.com/adriangrantdotorg/spotify-web-api-ai-skill.git
    ```
 
 4. **Install the skill in your local environment** (choose your platform):
