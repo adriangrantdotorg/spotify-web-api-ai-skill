@@ -19,26 +19,26 @@ Get the Spotify Web API Skill up and running in less than 5 minutes!
 
 **For Claude Code:**
 ```bash
-git clone https://github.com/adriangrantdotorg/spotify-web-api-skill.git ~/.claude/skills/spotify-web-api
+git clone https://github.com/adriangrantdotorg/spotify-web-api-ai-skill.git ~/.claude/skills/spotify-web-api
 ```
 
 **For Cursor:**
 ```bash
-git clone https://github.com/adriangrantdotorg/spotify-web-api-skill.git .cursor/skills/spotify-web-api
+git clone https://github.com/adriangrantdotorg/spotify-web-api-ai-skill.git .cursor/skills/spotify-web-api
 ```
 
 **For Google Antigravity:**
 ```bash
-git clone https://github.com/adriangrantdotorg/spotify-web-api-skill.git .agent/skills/spotify-web-api
+git clone https://github.com/adriangrantdotorg/spotify-web-api-ai-skill.git .agent/skills/spotify-web-api
 ```
 
 **For OpenCode:**
 ```bash
-git clone https://github.com/adriangrantdotorg/spotify-web-api-skill.git ~/.config/opencode/skills/spotify-web-api
+git clone https://github.com/adriangrantdotorg/spotify-web-api-ai-skill.git ~/.config/opencode/skills/spotify-web-api
 ```
 
 **For Claude.ai:**
-1. Download [this ZIP file](https://github.com/adriangrantdotorg/spotify-web-api-skill/archive/refs/heads/main.zip)
+1. Download [this ZIP file](https://github.com/adriangrantdotorg/spotify-web-api-ai-skill/archive/refs/heads/main.zip)
 2. Go to Settings → Capabilities → Upload skill
 3. Upload the ZIP and toggle ON
 
@@ -230,8 +230,8 @@ Now that you have the skill installed:
 
 ## 🆘 Get Help
 
-- **Questions**: [GitHub Discussions](https://github.com/adriangrantdotorg/spotify-web-api-skill/discussions)
-- **Bugs**: [GitHub Issues](https://github.com/adriangrantdotorg/spotify-web-api-skill/issues)
+- **Questions**: [GitHub Discussions](https://github.com/adriangrantdotorg/spotify-web-api-ai-skill/discussions)
+- **Bugs**: [GitHub Issues](https://github.com/adriangrantdotorg/spotify-web-api-ai-skill/issues)
 - **Documentation**: [README.md](README.md)
 
 ---

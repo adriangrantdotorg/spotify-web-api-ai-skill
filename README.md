@@ -4,7 +4,7 @@
 
 > An Agent Skill that teaches your AI assistant to build Spotify apps that stay fast, stay under the rate limit, and don't break in odd ways.
 
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE.txt) [![Agent Skills Standard](https://img.shields.io/badge/Agent%20Skills-Standard-1DB954.svg)](https://github.com/anthropics/skills) [![Version](https://img.shields.io/github/v/release/adriangrantdotorg/spotify-web-api-skill?color=orange&label=Version)](https://github.com/adriangrantdotorg/spotify-web-api-skill/releases) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/adriangrantdotorg/spotify-web-api-skill/pulls)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE.txt) [![Agent Skills Standard](https://img.shields.io/badge/Agent%20Skills-Standard-1DB954.svg)](https://github.com/anthropics/skills) [![Version](https://img.shields.io/github/v/release/adriangrantdotorg/spotify-web-api-ai-skill?color=orange&label=Version)](https://github.com/adriangrantdotorg/spotify-web-api-ai-skill/releases) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/adriangrantdotorg/spotify-web-api-ai-skill/pulls)
 
 ---
 
@@ -47,8 +47,8 @@ Before your AI writes Spotify code, it checks rules drawn from real dashboards a
 Needs an AI assistant that supports [Agent Skills](https://github.com/anthropics/skills). The apps it builds need a [Spotify developer app](https://developer.spotify.com/) (client ID, client secret, redirect URI).
 
 ```bash
-git clone --depth 1 https://github.com/adriangrantdotorg/spotify-web-api-skill.git
-cp -R spotify-web-api-skill/skill/spotify-web-api ~/.claude/skills/
+git clone --depth 1 https://github.com/adriangrantdotorg/spotify-web-api-ai-skill.git
+cp -R spotify-web-api-ai-skill/skill/spotify-web-api ~/.claude/skills/
 ```
 
 Other platforms: copy the same `skill/spotify-web-api` folder into the folder below.

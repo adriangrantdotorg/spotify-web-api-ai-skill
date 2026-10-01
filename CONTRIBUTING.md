@@ -35,7 +35,7 @@ Before contributing, make sure you have:
 
 2. **Clone your fork locally**:
    ```bash
-   git clone https://github.com/adriangrantdotorg/spotify-web-api-skill.git
+   git clone https://github.com/adriangrantdotorg/spotify-web-api-ai-skill.git
    cd spotify-web-api-skill
    ```
 
