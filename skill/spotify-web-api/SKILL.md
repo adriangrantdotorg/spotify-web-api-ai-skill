@@ -118,7 +118,7 @@ def get_auth_manager():
 
 ## 7. Perceived-Latency Killers for Multi-Page Dashboards
 
-These take page switches from seconds of "Loading..." to instant. Three independent patterns, apply all of them:
+Together these take a dashboard's page switches from seconds of "Loading..." to instantaneous. Three independent patterns, apply all of them:
 
 ### Short-TTL server-side cache for "currently playing"
 Every full page load re-polling Spotify makes navigation feel like the track must be "re-recognized" — even though it's the same track. Cache the assembled current-track payload server-side for ~5s (`{"payload": ..., "ts": time.time()}`); page switches then answer in ~1–2ms instead of ~350ms+ and cost **zero** Spotify calls.
@@ -145,11 +145,11 @@ There is no "which of my playlists contain track X" endpoint, so dashboards keep
 
 ## 9. Playlist writes in 2026, borrowed tokens, and "the playlist playing now"
 
-*   **Playlist contents are `/playlists/{id}/items`; `/tracks` is deprecated.** *Trigger:* any code that reads, adds to or removes from a playlist — `grep -rn "playlists/.*tracks" <repo>`. *Discrimination:* `/me/tracks` (the Liked Songs library) is a different, current endpoint — leave it. *Action:* GET `/items` (each entry carries `item` AND `track` — read `item`, fall back to `track`); POST `/items` with `{"uris":[…]}` → 201; DELETE `/items` with `{"items":[{"uri":…}]}` → 200 (the legacy DELETE body key was `tracks`); still 100 per call; the playlist object's count is `items.total` (then `tracks.total`). Try `/items` first and retry `/tracks` only on a 404.
-*   **A second tool borrows the owner's token — it NEVER refreshes it.** *Trigger:* a script or macro needs Spotify access on a machine where a long-running daemon already holds the OAuth login (in a token file it writes). *Discrimination:* running your own refresh looks harmless but refresh tokens rotate — the daemon's copy dies and the whole dashboard signs out. *Action:* read `access_token`; when `expires_at` is under 60 s away (or on a 401), poke the daemon so IT refreshes (through whatever endpoint it offers to force a refresh), then re-read the file; if the daemon is down, restart it (e.g. `launchctl kickstart`) instead of refreshing yourself. Check that any write endpoint the daemon offers is a clean write before you reuse it: a toggle may also Like on add and un-Like on remove.
-*   **"The playlist playing now" needs three guards.** (1) `GET /me/player` returns **204** once playback has been paused a while — fall back to the contexts in `GET /me/player/recently-played?limit=50`, most recent first, capped (6). (2) **Skip playlists the user does not own** (`owner.id` vs `GET /me`): nothing can be removed from them, and reading one in full is ruinous. (3) **An owned playlist whose id starts `37i9dQZF1` is Liked Songs wearing a playlist URI** (a big library can hold more than 13,000 tracks): reading it cost 139 requests and 18 s — ask `GET /me/tracks/contains?ids=` (50 per call) instead and remove with `DELETE /me/tracks`. *Self-check:* trace one cold run's request list; more than ~25 requests for a small selection means a guard is missing.
+*   **Playlist contents are `/playlists/{id}/items`; `/tracks` is deprecated.** *Trigger:* any code that reads, adds to or removes from a playlist — `grep -rn "playlists/.*tracks" <repo>`. *Discrimination:* `/me/tracks` (the Liked Songs library) is a different, current endpoint — leave it. *Action:* GET `/items` (each entry carries `item` AND `track` — read `item`, fall back to `track`); POST `/items` with `{"uris":[…]}` → 201; DELETE `/items` with `{"items":[{"uri":…}]}` → 200 (the legacy DELETE body key was `tracks`); still 100 per call; the playlist object's count is `items.total` (then `tracks.total`). Try `/items` first and retry `/tracks` only on a 404. Verified against the live API.
+*   **A second tool borrows the owner's token — it NEVER refreshes it.** *Trigger:* a script needs Spotify access on a machine where a long-running daemon already holds the OAuth login (its stored token file). *Discrimination:* running your own refresh looks harmless but refresh tokens rotate — the daemon's copy dies and the whole dashboard signs out. *Action:* read `access_token`; when `expires_at` is under 60 s away (or on a 401), ask the daemon so IT refreshes (through whatever refresh endpoint it exposes), then re-read the file; if the daemon is down, restart it rather than refreshing yourself. Check what the daemon's own write endpoints do before reusing them: a convenience toggle may have side effects, such as also Liking a track on add.
+*   **"The playlist playing now" needs three guards.** (1) `GET /me/player` returns **204** once playback has been paused a while — fall back to the contexts in `GET /me/player/recently-played?limit=50`, most recent first, capped (6). (2) **Skip playlists the user does not own** (`owner.id` vs `GET /me`): nothing can be removed from them, and reading one in full is ruinous. (3) **An owned playlist whose id starts `37i9dQZF1` is Liked Songs wearing a playlist URI** (one held 13,809 tracks): reading it cost 139 requests and 18 s — ask `GET /me/tracks/contains?ids=` (50 per call) instead and remove with `DELETE /me/tracks`. *Self-check:* trace one cold run's request list; more than ~25 requests for a small selection means a guard is missing.
 *   **Fast membership reads without going stale.** Page 1 returns `total`; fetch the remaining pages in parallel (6 workers took a 1,153-track playlist from ~7 s to ~2 s). Keep a local URI set per playlist keyed by `snapshot_id` (`~/Library/Caches/<tool>/<playlist>.json`): an unchanged snapshot skips the read entirely, a changed or missing one only costs a re-read — it can never serve wrong contents. After your own add, store `existing ∪ added` under the `snapshot_id` the POST returned. Do not pass `market` when comparing URIs copied from the desktop app — relinking changes them.
-*   **Move order is the OWNER's call — and either order needs its safety net.** *Trigger:* a tool moves tracks between playlists. *Discrimination:* add-first can only ever leave a duplicate, but the visible feedback (the track vanishing from the list the user is looking at) arrives LAST, so the owner may prefer to delete from the source first. *Action:* remove-first is fine when: (1) what is about to be removed is appended to the move log BEFORE the DELETE (the undo list survives a crash); (2) a failed add PUTS THE TRACKS BACK (`POST …/items` to the source — they land at its end; `PUT /me/tracks` for Liked Songs, idempotent) and the message says so; (3) the destination's duplicate read runs in a background thread started before the source lookup, so the removal never waits for it. Never block the caller on a courtesy call afterwards (a cache-refresh ping to the daemon took 3 s: detach it).
+*   **Move order is the OWNER's call — and either order needs its safety net.** *Trigger:* a tool moves tracks between playlists. *Discrimination:* add-first can only ever leave a duplicate, but the visible feedback (the track vanishing from the list the user is looking at) arrives LAST, so a user may reasonably prefer remove-first. *Action:* remove-first is fine when: (1) what is about to be removed is appended to the move log BEFORE the DELETE (the undo list survives a crash); (2) a failed add PUTS THE TRACKS BACK (`POST …/items` to the source — they land at its end; `PUT /me/tracks` for Liked Songs, idempotent) and the message says so; (3) the destination's duplicate read runs in a background thread started before the source lookup, so the removal never waits for it. Never block the caller on a courtesy call afterwards (a cache-refresh ping to the daemon took 3 s: detach it).
 
 ## 10. A WRITE is not visible to the next READ — hold what you just set
 
@@ -161,7 +161,7 @@ There is no "which of my playlists contain track X" endpoint, so dashboards keep
 
 *   **Trigger:** `POST /me/player/previous` or `/next` answers `403` with `Player command failed: Restriction violated`; the user report is a red error after pressing Previous on the first track of an album, a single, or a fresh context.
 *   **Discrimination:** the same 403 family covers Premium-only and no-active-device errors — read the message: "Restriction violated" is Spotify saying the CONTEXT has no track in that direction. It is not an auth problem, and retrying cannot succeed.
-*   **Action:** treat it as a normal outcome. PREVIOUS → `PUT /me/player/seek?position_ms=0` (what Spotify's own button does there), silently — the play head jumping to 0:00 is the feedback, so a "Restarted the track" toast is just noise. NEXT → a neutral "No next track" message, never the red error style. Every other failure keeps the error style. Test by stubbing the client's POST to reject with that exact text — never against the live player.
+*   **Action:** treat it as a normal outcome. PREVIOUS → `PUT /me/player/seek?position_ms=0` (what Spotify's own button does there), silently — the play head jumping to 0:00 is the feedback, and a "Restarted the track" toast only adds noise. NEXT → a neutral "No next track" message, never the red error style. Every other failure keeps the error style. Test by stubbing the client's POST to reject with that exact text — never against the live player.
 
 
 ## 12. Followed podcasts: list, prune by recency, unfollow, re-follow
@@ -171,26 +171,27 @@ There is no "which of my playlists contain track X" endpoint, so dashboards keep
 *   **Action:**
     1. List: `GET /me/shows?limit=50`, follow `next` (scope `user-library-read`). The Spotify URL is `https://open.spotify.com/show/<id>`.
     2. Newest episode: read `GET /shows/{id}/episodes?limit=10` AND the last page (`offset=total-10`), take the max `release_date` (check `release_date_precision`). Back off on 429 with `Retry-After`.
-    3. Unfollow: `DELETE /me/shows?ids=<up to 50 ids>` (scope `user-library-modify`) → 200; re-follow: `PUT /me/shows?ids=<id>`.
+    3. Unfollow: `DELETE /me/shows?ids=<up to 50 ids>` (scope `user-library-modify`) → 200; re-follow: `PUT /me/shows?ids=<id>`. Both verified against the live API.
     4. Verify with `GET /me/shows/contains?ids=…` and a fresh count; keep the removed IDs (a sheet backup tab is enough) so any unfollow can be undone.
-    5. Ask about the user's OWN show before applying a recency rule to it: a quiet personal podcast is easy to unfollow by mistake.
-*   When another process owns the login, borrow its token as in section 9; never refresh it yourself.
+    5. Ask about the user's OWN show before applying a recency rule to it: a 90-day rule can easily unfollow a show the user hosts.
+*   If a long-running process already holds the token, borrow it as in section 9; never refresh it yourself.
 
 ## 13. Paused Spotify blinds the Web API: read the desktop app's menu, change it through AppleScript
 
 *Trigger:* a tool reads or changes REPEAT (or shuffle) and Spotify on the Mac is paused, or a write fails with
 `missing device id`, `NO_ACTIVE_DEVICE` / 404, or a read says repeat "off" while Spotify's button is lit.
 *Discrimination:* once Spotify has been paused a while it has no ACTIVE device as far as the servers know. Then
-`GET /me/player` (`device` null) and CLI clients built on the Web API
-all report repeat off whatever the app shows, and every write route fails, even with an explicit device id
-("missing device id"), while transferring playback can answer 429. (With the device recently active, a write with an
-explicit device id DOES work, so a passing test proves
+`GET /me/player` (`device` null) and command-line clients built on it
+all report repeat off whatever the app shows, and every write route fails, with or without an explicit device id:
+"missing device id", and 429 when trying to transfer to the device. (While the device was recently active,
+the same write with a device id DID work, so a passing test proves
 little.) A playing Spotify is not this case.
 *Action:*
 1. Treat a read with no device as BLIND, not as "off": keep the last known state (persist it), never overwrite it.
-   **Read the producer's REAL shape:** a state source may give the device as a NAME string, or a null object when
-   there is no device. A check for the wrong shape reads every message as blind, while tests built on invented
-   fixtures still pass. Before writing the check, capture a real payload from the source and copy it into the test.
+   **Read the producer's REAL shape:** a source you poll may give `device` as a plain NAME string
+   (`"My Mac"`), and the whole playback object as null when there is no device, not an object. A check written as
+   `device is [String: Any]` then reads every message as blind, while tests pass on invented `["id": …]`
+   fixtures. Before writing the check, fetch a real response and copy it into the test.
 2. Read the desktop app instead: Spotify's window content is hidden from accessibility (only its menus are exposed;
    `AXManualAccessibility` is unsupported, `AXEnhancedUserInterface` not implemented), but **Playback ▸ Repeat**
    carries `AXMenuItemMarkChar` = `✓` while repeat is on, even with the menu closed (follows a change within ~0.5 s;
@@ -199,8 +200,14 @@ little.) A playing Spotify is not this case.
    Needs Accessibility for the reading app.
 3. **AppleScript `repeating` is album / playlist repeat ONLY.** *Trigger:* you are about to turn repeat off
    with `tell application id "com.spotify.client" to set repeating to false`. *Discrimination:* with repeat-one on,
-   `repeating` already reads false, so the set "succeeds" with its read-back and changes nothing: a tool that trusts it
-   shows repeat off while Spotify keeps repeat-one. It is unproven for album repeat too: repeated tries have
-   read back "still on". *Action:* never use it for repeat-one; turn repeat-one off with the Web API
-   (`PUT /me/player/repeat?state=off`, passing this Mac's `device_id`), and treat a read-back of `repeating` as no proof of anything; confirm
+   `repeating` already reads false, so the set "succeeds" with its read-back and changes nothing: a status display
+   can show repeat off while Spotify keeps repeat-one. It is unproven for album repeat too: repeated tries have
+   read back "still on". *Action:* never use it for repeat-one; turn repeat-one off through the Web API (`PUT /me/player/repeat?state=off`, then
+   again with `device_id=<this Mac's id>`), and treat a read-back of `repeating` as no proof of anything; confirm
    with the menu ✓ or the next poll. Needs the one-time Automation prompt (`NSAppleEventsUsageDescription`).
+4. **Which track the app is on, while paused.** *Trigger:* a tool needs the CURRENT track or
+   album (not repeat) while paused. *Discrimination:* a now-playing lookup falls back to recently-played when the
+   API has no device, and recently-played skips tracks never played long enough, so it can name an earlier track.
+   *Action:* read `id of current track` from the Spotify app through AppleScript (from a process that
+   has the Automation grant), then `GET /tracks/<id>` for its album; recently-played is the
+   fallback when the app isn't running.
