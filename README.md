@@ -13,7 +13,7 @@
 - 🚦 **Fewer 429 errors** — polls and pages the way Spotify's limits expect
 - 💸 **$0 added cost** — it runs on the AI you already use
 - 📅 **Current with 2026 endpoints** — playlist `/items`, not the deprecated `/tracks`
-- 🧠 **Lessons from real apps** — fixes for bugs that docs never mention
+- 🧠 **Lessons from real apps** — fixes for bugs the docs never mention
 
 | | 😩 Without this Skill | 😌 With this Skill |
 | --- | :---: | :---: |
@@ -35,10 +35,10 @@ Before your AI writes Spotify code, it checks rules drawn from real dashboards a
 - 🚦 **Rate limits handled for you** — fail fast, read `Retry-After`, show the user a countdown
 - 🔄 **Smart polling** — every 10 s while visible, every 60 s when the tab is hidden
 - ⚡ **Instant page switches** — a 5-second server cache plus a saved last track
-- 🗂️ **"Which playlists have this song" that survives restarts** — a saved cache, never faked as empty
 - 🎛️ **Controls that don't flip back** — holds a repeat or shuffle change until Spotify catches up
 - ⏮️ **No false errors on Previous or Next** — "Restriction violated" restarts the track instead
-- 🔐 **Safe token sharing** — a second tool borrows the login and never refreshes it
+- ⏸️ **Still accurate while paused** — reads the Mac desktop app when the API sees no device
+- 🎙️ **Safe podcast cleanup** — finds truly quiet shows and keeps an undo list
 
 ---
 
@@ -47,21 +47,20 @@ Before your AI writes Spotify code, it checks rules drawn from real dashboards a
 Needs an AI assistant that supports [Agent Skills](https://github.com/anthropics/skills). The apps it builds need a [Spotify developer app](https://developer.spotify.com/) (client ID, client secret, redirect URI).
 
 ```bash
-git clone --depth 1 https://github.com/adriangrantdotorg/spotify-web-api-ai-skill.git
-cp -R spotify-web-api-ai-skill/skill/spotify-web-api ~/.claude/skills/
-```
+git clone --depth 1 https://github.com/adriangrantdotorg/spotify-web-api-ai-skill.git /tmp/spotify-web-api-ai-skill
 
-Other platforms: copy the same `skill/spotify-web-api` folder into the folder below.
+# Copy the skill into each platform you use
+mkdir -p ~/.claude/skills ~/.cursor/skills ~/.agents/skills
+cp -R /tmp/spotify-web-api-ai-skill/skill/spotify-web-api ~/.claude/skills/   # Claude Code
+cp -R /tmp/spotify-web-api-ai-skill/skill/spotify-web-api ~/.cursor/skills/   # Cursor
+cp -R /tmp/spotify-web-api-ai-skill/skill/spotify-web-api ~/.agents/skills/   # ChatGPT & Codex
+```
 
 | **Platform** | **Skills folder** |
 | --- | --- |
-| **Claude Code** | `~/.claude/skills/` |
-| **Claude.ai** | Settings ▸ Capabilities ▸ Skills ▸ upload the folder as a ZIP |
-| **Codex CLI** | `~/.codex/skills/` |
-| **Gemini CLI** | `~/.gemini/skills/` |
-| **OpenCode** | `~/.config/opencode/skills/` |
-| **Cursor** | `.cursor/skills/` in your project |
-| **Google Antigravity** | `.agent/skills/` in your project |
+| **[Claude Code](https://code.claude.com/docs/en/skills)** | `~/.claude/skills/` |
+| **[Cursor](https://cursor.com/docs/skills)** | `~/.cursor/skills/` |
+| **[ChatGPT & Codex](https://learn.chatgpt.com/docs/build-skills)** | `~/.agents/skills/` |
 
 ---
 
