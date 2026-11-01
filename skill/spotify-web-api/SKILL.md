@@ -216,12 +216,22 @@ little.) A playing Spotify is not this case.
 (`GET /me/following/contains`), and the user can change either one in the Spotify app. *Discrimination:* the desktop app's
 `com.spotify.client.PlaybackStateChanged` notification covers playback only, and no Web API endpoint pushes library or
 follow changes; a value read once when the album loads stays wrong until the album changes (save an album in Spotify
-and a sidebar keeps showing SAVE TO LIBRARY). Every extra call spends rate-limit budget, so never a
+and the panel keeps showing SAVE TO LIBRARY). Keep extra API calls to a minimum, so never a
 blanket timer. *Action:* re-ask ONLY while the panel showing it is open AND the window is on screen (paused while hidden,
 minimized or closed: zero requests): the album every 20 s (one `contains` call), the follow every 60 s, both at once when
 the window comes back on screen or gains focus (with a 3 s gap so the two events don't double). Skip a tick while a button
 press is in flight, and re-render only when an answer CHANGED (a rebuild restarts the panel's animations). Reset the shown
 value to "unknown" when the album changes, so a stale answer never shows on the next album.
+
+**Spotify in front = ask FAST.** *Trigger:* the re-ask above leans on "the window gains focus" to catch a
+change made in Spotify. *Discrimination:* a dashboard that sits on screen BESIDE Spotify never loses visibility and
+never regains focus, so every follow waited for the 60 s tick. A focus or on-screen event only helps when the user switches
+windows on top of each other. *Action:* the native shell watches `NSWorkspace.didActivateApplicationNotification`
+(passive, no permission prompt) for bundle id `com.spotify.client` and tells the page; while Spotify is in front, re-ask
+both every 4 s for at most 2 minutes, and once more the moment Spotify loses the front. Zero extra calls any other time.
+Seed the state at launch from `NSWorkspace.shared.frontmostApplication` and send it to every new window. Guard: a test that stubs
+the API client (Spotify's answer flips under it, no real
+follow or save) and fails if the button does not catch up within 5 s, or the fast mode never ends.
 
 ## 15. Release type (album / single / EP), and Web API waits a person sits through
 
@@ -229,10 +239,10 @@ value to "unknown" when the album changes, so a stale answer never shows on the 
 user waits on (a summon, a button) goes through the Web API.
 *Discrimination:* `album_type` has no EP value: Spotify files EPs AND some full projects under "single" (Jass Clutch's
 16-track "It's Clutch" is a "single"), so "a single with ≥4 tracks is an EP" called it an EP. Separately, Web API
-requests time out at 15 s on some evenings (a polling daemon can log `poll error: … timed out`
-several times in one evening): a caller that gave up at 4 s reported "daemon isn't answering" while the daemon was up, and a fallback to
+requests time out at 15 s on some evenings (a background poller can log `poll error: … timed out` several times
+in one evening): a caller that gave up at 4 s reported the service as down while it was up, and a fallback to
 the last-polled track filed a review under the WRONG song.
-*Action:* (1) one producer for the type, a single function such as `albumKind`:
+*Action:* (1) one producer for the type (a single function such as `albumKind`):
 a "single" with 1-3 tracks is a single, 4-6 an EP, 7+ an album (Spotify's own release rules); other code mirrors it and
 names it as the source. (2) A user-facing wait on the Web
 API runs in the background with a visible waiting state, waits at least 16 s, and tells a timeout ("Spotify is slow")
