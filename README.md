@@ -33,7 +33,7 @@ Before your AI writes Spotify code, it checks rules drawn from real dashboards a
 ![The same request with and without the skill: without it, the app polls too often, gets rate limited, hangs, and works on try 4; with it, the AI checks the rules, uses smart polling, and works on try 1](docs/media/with-vs-without-skill.svg)
 
 - 🚦 **Rate limits handled for you** — fail fast, read `Retry-After`, show the user a countdown
-- ⚡ **Instant page switches** — a 5-second server cache plus a saved last track
+- 🔑 **Sign-ins that don't expire by surprise** — shows the re-sign-in date, six months from approval
 - 🎛️ **Controls that behave** — repeat holds until Spotify catches up; Previous restarts track one
 - 💚 **Save and Follow buttons that stay true** — re-checked only while they're on screen
 - 💿 **Albums, singles and EPs told apart** — the API has no EP type; track count decides
