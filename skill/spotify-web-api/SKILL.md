@@ -99,25 +99,26 @@ def get_auth_manager():
     )
 ```
 
-### Sign-in lasts six months from the APPROVAL; an Agree that fails is often the APP
+### Sign-in lasts six months from the APPROVAL; an Agree that fails is often the APP (added 11-12-26, Your App Name)
 
 *Trigger:* `400 Refresh token expired`, or Spotify's own Agree step sends the app back with `error=server_error`
 (the callback URL carries it). *Discrimination:* refreshing does not extend the login: the refresh token dies about
 180 days after the user last APPROVED the app, so stamp that moment (`authorized_at`) at every sign-in, keep it
 across refreshes, and show the re-sign-in date. A `server_error` that repeats on every try, with one scope or eleven,
-while another Spotify app of the user's gets a code the same minute, is that app's fault on Spotify's side, not the code. *Action:* (1) retry `server_error` / `temporarily_unavailable` ONCE by itself, then
+while another of his Spotify apps gets a code the same minute, is that app's fault on Spotify's side (the "Scraper"
+app, 11-12-26), not the code. *Action:* (1) retry `server_error` / `temporarily_unavailable` ONCE by itself, then
 show a TRY AGAIN page with the error; log every callback error; (2) offer a one-scope diagnostic sign-in to rule out
-scopes; (3) when the app is the cause, switch to another of the user's Spotify apps through a local setup page: the user pastes the
-Client ID and secret themselves (never an AI assistant), a client-credentials request checks them before anything is saved, the
+scopes; (3) when the app is the cause, switch to another of his apps through a local setup page: he pastes the
+Client ID and secret himself (never Claude), a client-credentials request checks them before anything is saved, the
 old credentials file is backed up; (4) prefer an app created BEFORE 02-11-26: newer Development Mode apps lose
-endpoints (follow, save album, batch fetches).
+endpoints (follow, save album, batch fetches). Reference: Your App Name daemon `SpotifyAuth.swift`, `/setup`.
 
 ## 5. Web API vs. Web Playback SDK
 
 *   **Web API:** Use for **Dashboards** and **Controllers**. You want to see what is playing on *any* device or control playback remotely.
 *   **Web Playback SDK:** Use for **Music Players**. You want the browser tab itself to emit sound and act as a Spotify Connect device. Do not use this just for metadata.
 
-## 6. Playlist Ordering & End-to-End Verification
+## 6. Playlist Ordering & End-to-End Verification (added 07-19-26)
 
 ### Add-order IS playlist order
 *   `POST /playlists/{id}/tracks` (spotipy `playlist_add_items`) with `position` omitted **appends URIs in the exact order given**. Sequential chunked adds (max 100 URIs per call) preserve global order across chunk boundaries.
@@ -129,19 +130,19 @@ endpoints (follow, save album, batch fetches).
 *   This exercises the real code end-to-end — CSV parsing, match loop, chunked add loop — without creating real playlists or touching OAuth. **Never create a live playlist just to check a behavior.**
 *   In your summary, distinguish what was **proven by execution** from what rests on **documented API behavior** — and verify the latter against docs or production evidence, not memory.
 
-### Dual-stage order verification & live post-create audit
+### Dual-stage order verification & live post-create audit (added 11-14-26)
 *   **Audit BOTH upstream source order AND Spotify's live playlist state:** Checking only that `playlist_add_items` sent the same URIs your exporter received misses upstream config fallbacks (e.g., preset schema mismatch causing a silent fallback to default source ordering before export even starts).
     1. **Pre-export guard:** Assert the loaded source-group sequence matches the requested preset/config BEFORE matching or adding tracks.
     2. **Post-create paginated audit (`audit_and_repair_playlist`):** After creating and populating a playlist, fetch **every page** of `playlist_items` (follow `next` pointers at 100 items/page) and compare the live track URI list index-for-index against `expected_uris`. If anything diverges, clear and re-apply (`playlist_replace_items(id, [])` + sequential 100-item `playlist_add_items` chunks) automatically and log the mismatch.
 
-### Fast parallel `/me/playlists` scans for large libraries
+### Fast parallel `/me/playlists` scans for large libraries (added 11-14-26)
 *   Checking hundreds of playlists sequentially with `sp.current_user_playlists(offset=...)` stalls pre-flight dialogs by 5–6+ seconds.
 *   Fetch `sp.me()` and page 0 (`limit=50, offset=0`) concurrently first to learn `total`, then fan out all remaining offsets (`50, 100, ...`) across a bounded `ThreadPoolExecutor` (`max_workers=6`).
 *   **Per-worker Spotipy client:** Extract the cached OAuth access token once and instantiate a lightweight `spotipy.Spotify(auth=token)` inside each worker rather than sharing one `Spotipy` / `requests.Session` across threads. In practice this cuts an 800+ playlist scan from ~5.6s down to ~1.7s without risking session thread-safety bugs.
 
-## 7. Perceived-Latency Killers for Multi-Page Dashboards
+## 7. Perceived-Latency Killers for Multi-Page Dashboards (added 07-21-26)
 
-In a multi-page dashboard, these took page switches from seconds of "Loading..." to instantaneous. Three independent patterns, apply all of them:
+Proven in Your App Name: page switches went from seconds of "Loading..." to instantaneous. Three independent patterns, apply all of them:
 
 ### Short-TTL server-side cache for "currently playing"
 Every full page load re-polling Spotify makes navigation feel like the track must be "re-recognized" — even though it's the same track. Cache the assembled current-track payload server-side for ~5s (`{"payload": ..., "ts": time.time()}`); page switches then answer in ~1–2ms instead of ~350ms+ and cost **zero** Spotify calls.
@@ -157,118 +158,131 @@ On every successful poll, persist `{ts, track}` to localStorage. On page load, i
 *   Any "UI is ready" flag consumed by a native wrapper (e.g. `window.__trackReady`) must be set **unconditionally after each settled poll**, not inside a did-anything-change guard — an optimistic pre-render makes the guard skip and would starve the flag.
 *   The same localStorage trick applies to **every** region, not just the track header: persist the playlist/tile list per page and the current track's membership ids, render them instantly on load, and let the live fetch correct. Guard the correction path: an **empty interim response must never clobber an already-rendered cached list** (assign fetched data to the live variable only when non-empty).
 
-## 8. Membership Caches: Persist Across Restarts, Never Pre-Seed Empty
+## 8. Membership Caches: Persist Across Restarts, Never Pre-Seed Empty (added 08-28-26)
 
-There is no "which of my playlists contain track X" endpoint, so dashboards keep a server-side `{playlist_id → set(track URIs)}` cache warmed by fetching each playlist (~2s apart for rate limits — ~80 playlists ≈ 3 minutes). Rules learned the hard way:
+Proven in Your App Name. There is no "which of my playlists contain track X" endpoint, so dashboards keep a server-side `{playlist_id → set(track URIs)}` cache warmed by fetching each playlist (~2s apart for rate limits — ~80 playlists ≈ 3 minutes). Rules learned the hard way:
 
 *   **Persist the warm cache to disk and load it at startup.** Otherwise every launch spends the whole warm-up answering "this track is saved nowhere" — the user sees their saved track unrecognized. Save per-playlist during warm-up (a mid-warm-up quit still leaves the next launch mostly warm) and write-through on every add/remove the app itself performs. Atomic write via temp+`os.replace`, but `os.path.realpath()` FIRST when the file may be a symlink (shared runtime file across git worktrees) — a plain rename replaces the symlink with a local file and silently unshares it.
 *   **Cache-dict membership must mean "real data".** Pre-seeding `cache[pid] = set()` at startup so lookups don't KeyError silently converts "not fetched yet" into "definitely not in this playlist" and disables any live-check fallback — the exact launch bug. Guard mutation sites with `if pid in cache` instead, and let absent keys route to a (bounded!) live check — cap it (~8 playlists/request); a first-ever run with nothing cached must not burst 80+ playlist fetches.
 *   **Tell the client when answers are provisional.** Return an `X-Cache-State: warming|ready` header (`warming` while config/pages are still resolving, any warm-up thread is running, or live checks were skipped); the client re-checks every ~10s while warming so tiles self-correct as fresh data lands — external changes made while the app was closed converge without waiting for a track change.
 *   **Answer from the persisted cache even before config resolves.** In the first seconds after launch the server may not have resolved which playlists each page shows; if the request arrives then, scan the persisted cache directly rather than returning `[]` — extra ids for no-longer-configured playlists are harmless to a client that matches ids against rendered tiles.
 
-## 9. Playlist writes in 2026, borrowed tokens, and "the playlist playing now"
+## 9. Playlist writes in 2026, borrowed tokens, and "the playlist playing now" (added 09-19-26 / 09-20-26)
 
-*   **Playlist contents are `/playlists/{id}/items`; `/tracks` is deprecated.** *Trigger:* any code that reads, adds to or removes from a playlist — `grep -rn "playlists/.*tracks" <repo>`. *Discrimination:* `/me/tracks` (the Liked Songs library) is a different, current endpoint — leave it. *Action:* GET `/items` (each entry carries `item` AND `track` — read `item`, fall back to `track`); POST `/items` with `{"uris":[…]}` → 201; DELETE `/items` with `{"items":[{"uri":…}]}` → 200 (the legacy DELETE body key was `tracks`); still 100 per call; the playlist object's count is `items.total` (then `tracks.total`). Try `/items` first and retry `/tracks` only on a 404. Verified live.
-*   **A second tool borrows the owner's token — it NEVER refreshes it.** *Trigger:* a script or macro needs Spotify access on a machine where a long-running daemon already holds the OAuth login in its own token file. *Discrimination:* running your own refresh looks harmless but refresh tokens rotate — the daemon's copy dies and the whole dashboard signs out. *Action:* read `access_token`; when `expires_at` is under 60 s away (or on a 401), ask the daemon to refresh (through whatever local endpoint it exposes), then re-read the file; if the daemon is down, restart it (e.g. with `launchctl kickstart`) instead of refreshing yourself. Check a daemon's write endpoints before reusing them: one may have side effects, such as also Liking a track on add and un-Liking it on remove.
-*   **"The playlist playing now" needs three guards.** (1) `GET /me/player` returns **204** once playback has been paused a while — fall back to the contexts in `GET /me/player/recently-played?limit=50`, most recent first, capped (6). (2) **Skip playlists the user does not own** (`owner.id` vs `GET /me`): nothing can be removed from them, and reading one in full is ruinous. (3) **An owned playlist whose id starts `37i9dQZF1` is Liked Songs wearing a playlist URI** (one had 13,809 tracks): reading it cost 139 requests and 18 s — ask `GET /me/tracks/contains?ids=` (50 per call) instead and remove with `DELETE /me/tracks`. *Self-check:* trace one cold run's request list; more than ~25 requests for a small selection means a guard is missing.
+Proven building the Keyboard Maestro "move selected tracks" script (`spotify_move_selected.py`, Keyboard Maestro repo) and migrating the Your App Name daemon.
+
+*   **Playlist contents are `/playlists/{id}/items`; `/tracks` is deprecated.** *Trigger:* any code that reads, adds to or removes from a playlist — `grep -rn "playlists/.*tracks" <repo>`. *Discrimination:* `/me/tracks` (the Liked Songs library) is a different, current endpoint — leave it. *Action:* GET `/items` (each entry carries `item` AND `track` — read `item`, fall back to `track`); POST `/items` with `{"uris":[…]}` → 201; DELETE `/items` with `{"items":[{"uri":…}]}` → 200 (the legacy DELETE body key was `tracks`); still 100 per call; the playlist object's count is `items.total` (then `tracks.total`). Try `/items` first and retry `/tracks` only on a 404. Verified live 09-19-26.
+*   **A second tool borrows the owner's token — it NEVER refreshes it.** *Trigger:* a script or macro needs Spotify access on a machine where a long-running daemon already holds the OAuth login (`~/Library/Application Support/Your App Name Daemon/token.json`). *Discrimination:* running your own refresh looks harmless but refresh tokens rotate — the daemon's copy dies and the whole dashboard signs out. *Action:* read `access_token`; when `expires_at` is under 60 s away (or on a 401), poke the daemon so IT refreshes (`GET 127.0.0.1:8877/playlists?refresh=1`), then re-read the file; if the daemon is down, `launchctl kickstart gui/$UID/com.example.spotify-dashboard.daemon`. The daemon's `/toggle-track` is not a clean write: it also Likes on add and un-Likes on remove.
+*   **"The playlist playing now" needs three guards.** (1) `GET /me/player` returns **204** once playback has been paused a while — fall back to the contexts in `GET /me/player/recently-played?limit=50`, most recent first, capped (6). (2) **Skip playlists the user does not own** (`owner.id` vs `GET /me`): nothing can be removed from them, and reading one in full is ruinous. (3) **An owned playlist whose id starts `37i9dQZF1` is Liked Songs wearing a playlist URI** (13,809 tracks on 09-20-26): reading it cost 139 requests and 18 s — ask `GET /me/tracks/contains?ids=` (50 per call) instead and remove with `DELETE /me/tracks`. *Self-check:* trace one cold run's request list; more than ~25 requests for a small selection means a guard is missing.
 *   **Fast membership reads without going stale.** Page 1 returns `total`; fetch the remaining pages in parallel (6 workers took a 1,153-track playlist from ~7 s to ~2 s). Keep a local URI set per playlist keyed by `snapshot_id` (`~/Library/Caches/<tool>/<playlist>.json`): an unchanged snapshot skips the read entirely, a changed or missing one only costs a re-read — it can never serve wrong contents. After your own add, store `existing ∪ added` under the `snapshot_id` the POST returned. Do not pass `market` when comparing URIs copied from the desktop app — relinking changes them.
-*   **Move order is the OWNER's call — and either order needs its safety net.** *Trigger:* a tool moves tracks between playlists. *Discrimination:* add-first can only ever leave a duplicate, but the visible feedback (the track vanishing from the list the user is looking at) arrives LAST, so a user may want removal to happen first. *Action:* remove-first is fine when: (1) what is about to be removed is appended to the move log BEFORE the DELETE (the undo list survives a crash); (2) a failed add PUTS THE TRACKS BACK (`POST …/items` to the source — they land at its end; `PUT /me/tracks` for Liked Songs, idempotent) and the message says so; (3) the destination's duplicate read runs in a background thread started before the source lookup, so the removal never waits for it. Never block the caller on a courtesy call afterwards (a cache-refresh ping to the daemon took 3 s: detach it).
+*   **Move order is the OWNER's call — and either order needs its safety net (revised 09-20-26).** *Trigger:* a tool moves tracks between playlists. *Discrimination:* add-first can only ever leave a duplicate, but the visible feedback (the track vanishing from the list he is looking at) arrives LAST — user asked for "the first step is deleting the track from the current playing playlist" (macro `FF98B146-…`). *Action:* remove-first is fine when: (1) what is about to be removed is appended to the move log BEFORE the DELETE (the undo list survives a crash); (2) a failed add PUTS THE TRACKS BACK (`POST …/items` to the source — they land at its end; `PUT /me/tracks` for Liked Songs, idempotent) and the message says so; (3) the destination's duplicate read runs in a background thread started before the source lookup, so the removal never waits for it. Never block the caller on a courtesy call afterwards (a cache-refresh ping to the daemon took 3 s: detach it).
 
-## 10. A WRITE is not visible to the next READ — hold what you just set
+## 10. A WRITE is not visible to the next READ — hold what you just set (added 09-20-26, Your App Name)
 
-*   **Trigger:** code that does `PUT /me/player/<something>` (repeat, shuffle, play / pause, volume, seek) and then polls `GET /me/player` "to confirm", or a user report shaped like "I press it, it changes, then it flips back" / "sometimes the button doesn't work". In a log, the signature is the SAME command fired twice 5 – 10 s apart (the user pressed again).
+*   **Trigger:** code that does `PUT /me/player/<something>` (repeat, shuffle, play / pause, volume, seek) and then polls `GET /me/player` "to confirm", or a user report shaped like "I press it, it changes, then it flips back" / "sometimes the button doesn't work". In a log, the signature is the SAME command fired twice 5 – 10 s apart (he pressed again).
 *   **Discrimination:** it is not a failed request (the PUT answered 2xx) and not a paused-device problem — the player endpoint simply lags its own writes by up to several seconds, exactly as it lags the desktop client after a skip. An optimistic UI with a SHORT fixed lock (2.5 s) makes it worse: the lock expires, the stale poll wins, and the truth only returns with the next heartbeat. Where a push channel exists (the desktop app's `PlaybackStateChanged` notification covers play / pause on the same Mac) the stale read is corrected within milliseconds and the bug hides — check whether the field you changed is IN that payload before assuming it is covered (repeat is not).
 *   **Action — two guards, no extra requests, never a tighter poll:** (1) the process that made the write HOLDS the written value for ~6 s: a poll inside the window that contradicts it keeps the held value (one small `(state, until)` slot, the same one used for hints from outside); (2) the UI lock is CONFIRMED, not timed — show the requested state for at least ~4 s, then until a poll agrees, at most ~14 s (one heartbeat + slack); a newer press replaces the lock, a failed request clears only its OWN lock, and an announced change that contradicts the lock (another client) clears it. Toggle from what the UI SHOWS, not from the last poll, or a second press sends the opposite command. Test with the transport stubbed so the fake API stays stale for 6 s — never against live playback.
 
-## 11. 403 "Restriction violated" on next / previous means "there is none" — not a failure
+## 11. 403 "Restriction violated" on next / previous means "there is none" — not a failure (added 09-19-26, Your App Name)
 
 *   **Trigger:** `POST /me/player/previous` or `/next` answers `403` with `Player command failed: Restriction violated`; the user report is a red error after pressing Previous on the first track of an album, a single, or a fresh context.
 *   **Discrimination:** the same 403 family covers Premium-only and no-active-device errors — read the message: "Restriction violated" is Spotify saying the CONTEXT has no track in that direction. It is not an auth problem, and retrying cannot succeed.
-*   **Action:** treat it as a normal outcome. PREVIOUS → `PUT /me/player/seek?position_ms=0` (what Spotify's own button does there), silently — the play head jumping to 0:00 is the feedback, and a "Restarted the track" toast is only noise. NEXT → a neutral "No next track" message, never the red error style. Every other failure keeps the error style. Test by stubbing the client's POST to reject with that exact text — never against the live player.
+*   **Action:** treat it as a normal outcome. PREVIOUS → `PUT /me/player/seek?position_ms=0` (what Spotify's own button does there), silently — the play head jumping to 0:00 is the feedback, and user had a "Restarted the track" toast removed as noise. NEXT → a neutral "No next track" message, never the red error style. Every other failure keeps the error style. Test by stubbing the client's POST to reject with that exact text — never against the live player.
 
 
-## 12. Followed podcasts: list, prune by recency, unfollow, re-follow
+## 12. Followed podcasts: list, prune by recency, unfollow, re-follow (added 10-12-26)
 
 *   **Trigger:** a task about the podcasts a user follows ("list my shows", "unfollow anything quiet for 90 days", "put my podcasts in a sheet"), or any code that reads `/me/shows`.
 *   **Discrimination:** the show's newest episode is NOT always the first item of `/shows/{id}/episodes`: serial and limited-run shows (true-crime seasons, "Boom/Bust") list oldest first, so reading only page one marks a live show as dead or a dead one as live. A show with 0 episodes returned is usually a market restriction, not a dead show: report it, never unfollow it automatically.
 *   **Action:**
     1. List: `GET /me/shows?limit=50`, follow `next` (scope `user-library-read`). The Spotify URL is `https://open.spotify.com/show/<id>`.
     2. Newest episode: read `GET /shows/{id}/episodes?limit=10` AND the last page (`offset=total-10`), take the max `release_date` (check `release_date_precision`). Back off on 429 with `Retry-After`.
-    3. Unfollow: `DELETE /me/shows?ids=<up to 50 ids>` (scope `user-library-modify`) → 200; re-follow: `PUT /me/shows?ids=<id>`. Both verified live.
+    3. Unfollow: `DELETE /me/shows?ids=<up to 50 ids>` (scope `user-library-modify`) → 200; re-follow: `PUT /me/shows?ids=<id>`. Both verified live 10-12-26.
     4. Verify with `GET /me/shows/contains?ids=…` and a fresh count; keep the removed IDs (a sheet backup tab is enough) so any unfollow can be undone.
-    5. Ask about the user's OWN show before applying a recency rule to it: a show the user publishes rarely is easy to unfollow by mistake.
-*   If another long-running tool already owns the login, borrow its token as in section 9; never refresh it yourself.
+    5. Ask about the user's OWN show before applying a recency rule to it (10-12-26: user's "Only Built For Hyperlinks" was unfollowed by a 90-day rule, then exempted).
+*   Borrow the Your App Name daemon's token as in section 9; never refresh it yourself.
 
-## 13. Paused Spotify blinds the Web API: read the desktop app's menu, change it through AppleScript
+## 13. Paused Spotify blinds the Web API: read the desktop app's menu, change it through AppleScript (added 10-20-26, Repeat Status)
 
 *Trigger:* a tool reads or changes REPEAT (or shuffle) and Spotify on the Mac is paused, or a write fails with
 `missing device id`, `NO_ACTIVE_DEVICE` / 404, or a read says repeat "off" while Spotify's button is lit.
 *Discrimination:* once Spotify has been paused a while it has no ACTIVE device as far as the servers know. Then
-`GET /me/player` (`device` null), `spogo status` (web AND connect engines: repeat `""`)
+`GET /me/player` (the Your App Name daemon: `device` null), `spogo status` (web AND connect engines: repeat `""`)
 all report repeat off whatever the app shows, and every write route fails: plain `spogo repeat`, `--engine web
---device <id>`, `--engine connect --device <id>` all said "missing device id", `device set` answered 429. (With the device recently active, `--engine web --device <id>` DOES work, so a passing test proves
+--device <id>`, `--engine connect --device <id>` all said "missing device id", `device set` answered 429. (Earlier
+the same night, with the device recently active, `--engine web --device <id>` DID work, so a passing test proves
 little.) A playing Spotify is not this case.
 *Action:*
 1. Treat a read with no device as BLIND, not as "off": keep the last known state (persist it), never overwrite it.
-   **Read the producer's REAL shape:** a playback source may report the device as a plain NAME string
-   (`"My Mac"`) and set `playback` to null when there is no device, not an object. A check like
-   `device is [String: Any]` then reads every message as blind, while tests pass on invented `["id": …]`
-   fixtures. Before writing the check, capture a real response from your source and copy it into the test.
+   **Read the producer's REAL shape (10-24-26):** the Your App Name daemon's `playback.device` is the device NAME
+   (`"Mac Mini 2024"`), and `playback` is null when there is no device; it is not an object. Repeat Status checked
+   `device is [String: Any]`, so every message read as blind all day, its tests passed on invented `["id": …]`
+   fixtures. Before writing the check, `curl -s 127.0.0.1:8877/state` and copy a real `now_playing` into the test.
 2. Read the desktop app instead: Spotify's window content is hidden from accessibility (only its menus are exposed;
    `AXManualAccessibility` is unsupported, `AXEnhancedUserInterface` not implemented), but **Playback ▸ Repeat**
    carries `AXMenuItemMarkChar` = `✓` while repeat is on, even with the menu closed (follows a change within ~0.5 s;
    ~2 ms to find, 0.3 ms per read). The ✓ is the SAME for repeat-one and album repeat; Spotify's button cycles off →
    album (context) → repeat-one, and its tooltip names the NEXT state ("Enable repeat one" = album repeat is on now).
    Needs Accessibility for the reading app.
-3. **AppleScript `repeating` is album / playlist repeat ONLY.** *Trigger:* you are about to turn repeat off
+3. **AppleScript `repeating` is album / playlist repeat ONLY (10-24-26).** *Trigger:* you are about to turn repeat off
    with `tell application id "com.spotify.client" to set repeating to false`. *Discrimination:* with repeat-one on,
-   `repeating` already reads false, so the set "succeeds" with its read-back and changes nothing: a status indicator
-   would drop its 🔂 while Spotify kept repeat-one. It is unproven for album repeat too: 7 logged tries,
+   `repeating` already reads false, so the set "succeeds" with its read-back and changes nothing: Repeat Status
+   removed its 🔂 while Spotify kept repeat-one. It is unproven for album repeat too: that app's log shows 7 tries,
    every read-back "still on". *Action:* never use it for repeat-one; turn repeat-one off with spogo (plain, then
    `--engine web --device <this Mac's id>`), and treat a read-back of `repeating` as no proof of anything; confirm
    with the menu ✓ or the next poll. Needs the one-time Automation prompt (`NSAppleEventsUsageDescription`).
-4. **Which track the app is on, while paused.** *Trigger:* a tool needs the CURRENT track or
-   album (not repeat) while paused. *Discrimination:* falling back to recently-played when the
-   API has no device misleads, because recently-played skips tracks never played long enough: paused on Toxic, it gave Open Letter.
-   *Action:* read `id of current track` from the Spotify app through AppleScript (from a process that
-   already has the Automation grant), then `GET /tracks/<id>` for its album; recently-played is the
-   fallback when the app isn't running.
+4. **Which track the app is on, while paused (10-29-26, album reviews).** *Trigger:* a tool needs the CURRENT track or
+   album (not repeat) while paused. *Discrimination:* the daemon's `now_playing.source` reads `recently_played` when the
+   API has no device, and recently-played skips tracks never played long enough: paused on Toxic, it gave Open Letter.
+   *Action:* read `id of current track` from the Spotify app through AppleScript (from Keyboard Maestro's Engine, which
+   already has the Automation grant), then `GET /tracks/<id>` for its album; the daemon and recently-played are the
+   fallback when the app isn't running. Recipe: `keyboard-maestro` skill pitfall 76.
+Reference: Repeat Status `Sources/RepeatEngine.swift` (`apiBlind`, `blindness`, `modeFromMark`, `appCanHelp`,
+`spotifyAppRepeatOff`) and
+`Sources/SpotifyMenuWatch.swift`.
 
-## 14. Saved albums and followed artists have NO change signal: re-ask while the answer is on screen
+## 14. Saved albums and followed artists have NO change signal: re-ask while the answer is on screen (added 10-31-26, Your App Name)
 
 *Trigger:* a UI shows "IN LIBRARY ✓ / SAVE TO LIBRARY" (`GET /me/albums/contains`) or "FOLLOWING / FOLLOW"
-(`GET /me/following/contains`), and the user can change either one in the Spotify app. *Discrimination:* the desktop app's
+(`GET /me/following/contains`), and user can change either one in the Spotify app. *Discrimination:* the desktop app's
 `com.spotify.client.PlaybackStateChanged` notification covers playback only, and no Web API endpoint pushes library or
-follow changes; a value read once when the album loads stays wrong until the album changes (save an album in Spotify
-and the sidebar keeps showing SAVE TO LIBRARY). Every extra call spends rate limit, so never a
+follow changes; a value read once when the album loads stays wrong until the album changes (he saved an album in Spotify
+and the sidebar kept SAVE TO LIBRARY: "needs to reflect it in real-time"). He is wary of extra API calls, so never a
 blanket timer. *Action:* re-ask ONLY while the panel showing it is open AND the window is on screen (paused while hidden,
 minimized or closed: zero requests): the album every 20 s (one `contains` call), the follow every 60 s, both at once when
 the window comes back on screen or gains focus (with a 3 s gap so the two events don't double). Skip a tick while a button
 press is in flight, and re-render only when an answer CHANGED (a rebuild restarts the panel's animations). Reset the shown
-value to "unknown" when the album changes, so a stale answer never shows on the next album.
+value to "unknown" when the album changes, so a stale answer never shows on the next album. Reference: Your App Name
+`web/js/sidebar.js` `liveCheck` (`LIVE = { every: 20000, followEvery: 3, gap: 3000 }`).
 
-**Spotify in front = ask FAST.** *Trigger:* the re-ask above leans on "the window gains focus" to catch a
-change made in Spotify. *Discrimination:* a dashboard that sits on screen BESIDE Spotify, so it never loses visibility and
+**Spotify in front = ask FAST (10-31-26, second report: "i follow an artist, spotify sees it, but this button doesnt
+changed until i think 30 secs or more later").** *Trigger:* the re-ask above leans on "the window gains focus" to catch a
+change made in Spotify. *Discrimination:* his dashboard sits on screen BESIDE Spotify, so it never loses visibility and
 never regains focus; every follow waited for the 60 s tick. A focus or on-screen event only helps when the user switches
 windows on top of each other. *Action:* the native shell watches `NSWorkspace.didActivateApplicationNotification`
 (passive, no permission prompt) for bundle id `com.spotify.client` and tells the page; while Spotify is in front, re-ask
 both every 4 s for at most 2 minutes, and once more the moment Spotify loses the front. Zero extra calls any other time.
-Seed the state at launch from `NSWorkspace.shared.frontmostApplication` and send it to every new window. Guard: a test that
-stubs the API call (Spotify's answer flips under it, no real
+Seed the state at launch from `NSWorkspace.shared.frontmostApplication` and send it to every new window. Guard: Spotify
+Dashboard `scripts/check-live-library.py <UI_PORT>` stubs `SD.daemon.get` (Spotify's answer flips under it, no real
 follow or save) and fails if the button does not catch up within 5 s, or the fast mode never ends.
 
-## 15. Release type (album / single / EP), and Web API waits a person sits through
+## 15. Release type (album / single / EP), and Web API waits a person sits through (added 10-31-26, Your App Name + Issues With Software)
 
 *Trigger:* code sorts or labels a release as album, single or EP (a badge, a folder, a file name), or a request the
 user waits on (a summon, a button) goes through the Web API.
 *Discrimination:* `album_type` has no EP value: Spotify files EPs AND some full projects under "single" (Jass Clutch's
 16-track "It's Clutch" is a "single"), so "a single with ≥4 tracks is an EP" called it an EP. Separately, Web API
-requests time out at 15 s on some evenings (a background poller can log `poll error: … timed out` several times
-in one evening): a caller that gave up at 4 s reported "the service isn't answering" while it was up, and a fallback to
+requests time out at 15 s on some evenings (the dashboard daemon logged `poll error: … timed out` several times on
+10-31-26): a caller that gave up at 4 s reported "daemon isn't answering" while the daemon was up, and a fallback to
 the last-polled track filed a review under the WRONG song.
-*Action:* (1) one producer for the type: one function (say `albumKind`):
+*Action:* (1) one producer for the type: `albumKind` in the Your App Name daemon (`daemon/Sources/Daemon/Models.swift`):
 a "single" with 1-3 tracks is a single, 4-6 an EP, 7+ an album (Spotify's own release rules); other code mirrors it and
-names it as the source. (2) A user-facing wait on the Web
+names it as the source (the KM repo's `spotify_create_album_review.py` `kind_folder`). (2) A user-facing wait on the Web
 API runs in the background with a visible waiting state, waits at least 16 s, and tells a timeout ("Spotify is slow")
 apart from a refused connection ("not running"). (3) When the desktop app's `PlaybackStateChanged` names another track,
-never stand in the poller's older one: fail and say why.
+never stand in the poller's older one: fail and say why. Reference: daemon `POST /review` (`Review.swift`).
+
+## 16. Bulk playlist renames and prefix migrations (`PUT /playlists/{id}`) (added 11-20-26)
+
+*   **Filter strictly on ownership AND exact prefix:** When migrating a naming prefix across existing playlists (e.g. changing `"Old Prefix "` to `"New Prefix "`), match `owner.id == current_user_id` AND `name.startswith(old_prefix)` — never a loose substring check, which sweeps in followed playlists you don't own alongside sibling-mode or legacy date-first titles.
+*   **Pace metadata writes and verify the live state:** Send `playlist_change_details` (`PUT /playlists/{id}`) through your 429 `Retry-After` wrapper with a short pause (~0.2 s) between calls so dozens of updates don't burst into Spotify's rolling 30-second rate-limit window, then re-scan `/me/playlists` afterward to confirm zero old-prefix playlists remain.
